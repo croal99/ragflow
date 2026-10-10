@@ -5,7 +5,7 @@
   "author": "bill",
   "type": "module",
   "scripts": {
-    "build": "vite build --mode production",
+    "build": "vite build --mode production --outDir ../docker/web-dist",
     "build:webapp": "vite build --mode production --outDir ../webapp/dist",
     "build-storybook": "storybook build",
     "dev": "vite --host",

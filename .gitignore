@@ -68,6 +68,9 @@ docker/oceanbase/data
 # SeekDB data and conf
 docker/seekdb
 
+# Locally compiled web frontend output (npm run build --outDir ../docker/web-dist)
+docker/web-dist/
+
 
 #--------------------------------------------------#
 # The following was generated with gitignore.nvim: #
