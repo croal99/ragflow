@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build --mode production",
+    "build:webapp": "vite build --mode production --outDir ../webapp/dist",
     "build-storybook": "storybook build",
     "dev": "vite --host",
     "format": "oxfmt src",

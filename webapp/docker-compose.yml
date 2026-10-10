@@ -1,10 +1,10 @@
 # Standalone RAGFlow web frontend.
-# Build the frontend first:
+# Build the frontend first (outputs to this directory's ./dist):
 #   cd ../web && npm install && NODE_OPTIONS="--max-old-space-size=8192" \
-#     VITE_BUILD_SOURCEMAP=false VITE_MINIFY=esbuild npm run build
+#     VITE_BUILD_SOURCEMAP=false VITE_MINIFY=esbuild npm run build:webapp
 # Then from this directory:
 #   docker compose up -d
-# The built assets live in ../web/dist and are served by nginx on port 80.
+# The built assets live in ./dist and are served by nginx on port 80.
 # API calls (/api, /v1, /api/v1/admin) are reverse-proxied to the python
 # backend at 172.168.2.30 (see nginx.conf).
 name: ragflow-web
@@ -16,6 +16,6 @@ services:
     ports:
       - "81:80"
     volumes:
-      - ../web/dist:/usr/share/nginx/html:ro
+      - ./dist:/usr/share/nginx/html:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     restart: unless-stopped
