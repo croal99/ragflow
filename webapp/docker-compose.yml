@@ -7,7 +7,7 @@
 # The built assets live in ./dist and are served by nginx on port 80.
 # API calls (/api, /v1, /api/v1/admin) are reverse-proxied to the python
 # backend at 172.168.2.30 (see nginx.conf).
-name: ragflow-web
+name: ragflow
 
 services:
   web:

@@ -151,7 +151,6 @@ The Go services use NATS JetStream for ingestion, synchronization, memory, and k
 
 The optional `tei-cpu` and `tei-gpu` profiles start a local text-embeddings-inference service. Its memory requirement depends on the model, runtime backend, precision, batch-token limit, and concurrency. The `tei-cpu` profile uses system RAM; the `tei-gpu` profile primarily uses GPU memory and also consumes system RAM. Verify model loading and peak request usage on the target hardware, and leave additional host memory for RAGFlow, the document engine, databases, and operating system.
 
-
 ### DeepDoc (in-process)
 
 DeepDoc layout analysis (DLA), OCR (text detection/recognition), and table structure recognition (TSR) run **in-process** inside the RAGFlow server using ONNX Runtime — there is no separate DeepDoc service to deploy. ONNX Runtime is statically linked into the server binary (resolved at runtime via dlopen(NULL); no `libonnxruntime.so` is required) and the models are loaded at runtime; `DEEPDOC_MODEL_DIR` overrides the default model directory. `Dockerfile` copies the required model assets into `/ragflow/internal/rag/res/deepdoc`.
@@ -178,14 +177,15 @@ In the RAGFlow open-source 1.0 release, DeepDoc uses CPU inference.
 [service_conf.yaml.template](./service_conf.yaml.template) specifies the system-level configuration for the Go API, Admin, Ingestor, and Syncer services. In a dockerized setup, the generated `service_conf.yaml` file is automatically created from this template (replacing all environment variables by their values).
 
 - `ragflow`
+
   - `host`: The API server's IP address inside the Docker container. Defaults to `0.0.0.0`.
   - `http_port`: The API server's serving port inside the Docker container. Defaults to `9380`.
-
 - `admin`
+
   - `host`: The Admin server's IP address inside the Docker container. Defaults to `0.0.0.0`.
   - `http_port`: The Admin server's serving port inside the Docker container. Defaults to `9381`.
-
 - `mysql`
+
   - `name`: The MySQL database name. Defaults to `rag_flow`.
   - `user`: The username for MySQL.
   - `password`: The password for MySQL.
@@ -193,13 +193,13 @@ In the RAGFlow open-source 1.0 release, DeepDoc uses CPU inference.
   - `max_connections`: The maximum number of concurrent connections in the MySQL connection pool. Defaults to `900`.
   - `stale_timeout`: The connection stale timeout in seconds. Defaults to `300`.
   - `max_allowed_packet`: The maximum communication packet size. Defaults to `1073741824` bytes (`1 GiB`).
-
 - `minio`
+
   - `user`: The username for MinIO.
   - `password`: The password for MinIO.
   - `host`: The MinIO serving IP *and* port inside the Docker container. Defaults to `minio:9000`.
-
 - `oceanbase`
+
   - `scheme`: The connection scheme. Set to `mysql` to use mysql config, or other values to use config below.
   - `config`:
     - `db_name`: The OceanBase database name.
@@ -207,16 +207,16 @@ In the RAGFlow open-source 1.0 release, DeepDoc uses CPU inference.
     - `password`: The password for OceanBase.
     - `host`: The hostname of the OceanBase service.
     - `port`: The port of OceanBase.
-
 - `oss`
+
   - `access_key`: The access key ID used to authenticate requests to the OSS service.
   - `secret_key`: The secret access key used to authenticate requests to the OSS service.
   - `endpoint_url`: The URL of the OSS service endpoint.
   - `region`: The OSS region where the bucket is located.
   - `bucket`: The name of the OSS bucket where files will be stored. When you want to store all files in a specified bucket, you need this configuration item.
   - `prefix_path`: Optional. A prefix path to prepend to file names in the OSS bucket, which can help organize files within the bucket.
-
 - `s3`:
+
   - `access_key`: The access key ID used to authenticate requests to the S3 service.
   - `secret_key`: The secret access key used to authenticate requests to the S3 service.
   - `endpoint_url`: The URL of the S3-compatible service endpoint. This is necessary when using an S3-compatible protocol instead of the default AWS S3 endpoint.
@@ -225,9 +225,9 @@ In the RAGFlow open-source 1.0 release, DeepDoc uses CPU inference.
   - `signature_version`: Optional. The version of the signature to use for authenticating requests. Common versions include `v4`.
   - `addressing_style`: Optional. The style of addressing to use for the S3 endpoint. This can be `path` or `virtual`.
   - `prefix_path`: Optional. A prefix path to prepend to file names in the S3 bucket, which can help organize files within the bucket.
-
 - `oauth`
   The OAuth configuration for signing up or signing in to RAGFlow using a third-party account.
+
   - `<channel>`: Custom channel ID.
     - `type`: Authentication type, options include `oauth2`, `oidc`, `github`. Default is `oauth2`, when `issuer` parameter is provided, defaults to `oidc`.
     - `icon`: Icon ID, options include `github`, `sso`, default is `sso`.
@@ -256,6 +256,7 @@ In the RAGFlow open-source 1.0 release, DeepDoc uses CPU inference.
 If you want your instance to be available under `https`, follow these steps:
 
 1. **Install Certbot and obtain certificates**
+
    ```bash
    # Ubuntu/Debian
    sudo apt update && sudo apt install certbot
@@ -266,14 +267,14 @@ If you want your instance to be available under `https`, follow these steps:
    # Obtain certificates (replace with your actual domain)
    sudo certbot certonly --standalone -d your-ragflow-domain.com
    ```
-
 2. **Locate your certificates**
    Once generated, your certificates will be located at:
+
    - Certificate: `/etc/letsencrypt/live/your-ragflow-domain.com/fullchain.pem`
    - Private key: `/etc/letsencrypt/live/your-ragflow-domain.com/privkey.pem`
-
 3. **Update docker-compose.yml**
    Add the certificate volumes to the `ragflow-cpu` service in `docker-compose.yml`:
+
    ```yaml
    services:
      ragflow-cpu:
@@ -287,18 +288,17 @@ If you want your instance to be available under `https`, follow these steps:
          # ...other existing volumes...
 
    ```
-
 4. **Update nginx configuration**
    Edit `nginx/ragflow.https.conf` and replace `my_ragflow_domain.com` with your actual domain name.
-
 5. **Restart the services**
+
    ```bash
    docker compose -f docker-compose.yml down
    docker compose -f docker-compose.yml up -d
    ```
 
-
 > ⚠️ **Important：**
+>
 > - Ensure your domain's DNS A record points to your server's IP address.
 > - Stop any services running on ports 80/443 before obtaining certificates with `--standalone`.
 
