@@ -47,10 +47,10 @@ type KBServiceIface interface {
 	Accessible(ctx context.Context, kbID, userID string) bool
 }
 
-// ModelServiceIface abstracts ModelProviderService for the Dify handler.
-type ModelServiceIface interface {
-	GetEmbeddingModel(ctx context.Context, tenantID, embdID string) (*modelModule.EmbeddingModel, error)
-	GetChatModel(ctx context.Context, tenantID, compositeModelName string) (*modelModule.ChatModel, error)
+// ModelCreator supplies typed model instances to Dify retrieval.
+type ModelCreator interface {
+	NewEmbeddingModel(ctx context.Context, access service.ModelAccess, modelRef string) (*modelModule.EmbeddingModel, error)
+	NewDefaultChatModel(ctx context.Context, access service.ModelAccess) (*modelModule.ChatModel, error)
 }
 
 // MetadataServiceIface abstracts MetadataService for the Dify handler.
@@ -132,7 +132,7 @@ type difyRecord struct {
 // DifyRetrievalHandler handles Dify-compatible retrieval requests.
 type DifyRetrievalHandler struct {
 	kbSvc        KBServiceIface
-	modelSvc     ModelServiceIface
+	modelFactory ModelCreator
 	metadataSvc  MetadataServiceIface
 	retrievalSvc RetrievalServiceIface
 	docDAO       DocumentDAOIface
@@ -144,7 +144,7 @@ type DifyRetrievalHandler struct {
 // a pipeline that depends on per-request model configuration.
 func NewDifyRetrievalHandler(
 	kbSvc KBServiceIface,
-	modelSvc ModelServiceIface,
+	modelFactory ModelCreator,
 	metadataSvc MetadataServiceIface,
 	retrievalSvc RetrievalServiceIface,
 	docDAO DocumentDAOIface,
@@ -152,7 +152,7 @@ func NewDifyRetrievalHandler(
 ) *DifyRetrievalHandler {
 	return &DifyRetrievalHandler{
 		kbSvc:        kbSvc,
-		modelSvc:     modelSvc,
+		modelFactory: modelFactory,
 		metadataSvc:  metadataSvc,
 		retrievalSvc: retrievalSvc,
 		docDAO:       docDAO,
@@ -235,7 +235,8 @@ func (h *DifyRetrievalHandler) Retrieval(c *gin.Context) {
 	}
 
 	// Get embedding model
-	embModel, err := h.modelSvc.GetEmbeddingModel(ctx, kb.TenantID, kb.EmbdID)
+	access := service.ModelAccess{UserID: user.ID, TenantID: kb.TenantID}
+	embModel, err := h.modelFactory.NewEmbeddingModel(ctx, access, kb.EmbdID)
 	if err != nil {
 		common.ResponseWithHttpCodeData(c, http.StatusInternalServerError, common.CodeServerError, nil, fmt.Sprintf("failed to get embedding model: %v", err))
 		return
@@ -291,7 +292,7 @@ func (h *DifyRetrievalHandler) Retrieval(c *gin.Context) {
 
 	// KG retrieval (optional)
 	if req.UseKG {
-		chatModel, kgErr := h.modelSvc.GetChatModel(ctx, kb.TenantID, "")
+		chatModel, kgErr := h.modelFactory.NewDefaultChatModel(ctx, access)
 		if kgErr != nil {
 			common.Warn("KG retrieval: failed to get chat model", zap.String("kbID", req.KnowledgeID), zap.Error(kgErr))
 		} else if chatModel != nil {

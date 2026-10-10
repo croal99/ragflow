@@ -62,24 +62,16 @@ func (m *mockKBService) Accessible(ctx context.Context, kbID, userID string) boo
 	return true
 }
 
-type mockModelService struct {
-	ModelServiceIface
-	getEmbeddingFn func(ctx context.Context, tenantID, embdID string) (*modelModule.EmbeddingModel, error)
-	getChatModelFn func(ctx context.Context, tenantID, llmID string) (*modelModule.ChatModel, error)
+type mockModelFactory struct{}
+
+func (mockModelFactory) NewEmbeddingModel(context.Context, service.ModelAccess, string) (*modelModule.EmbeddingModel, error) {
+	name := "test-model"
+	return modelModule.NewEmbeddingModel(&modelModule.DummyModel{}, &name, &modelModule.APIConfig{}, 0), nil
 }
 
-func (m *mockModelService) GetEmbeddingModel(ctx context.Context, tenantID, embdID string) (*modelModule.EmbeddingModel, error) {
-	if m.getEmbeddingFn != nil {
-		return m.getEmbeddingFn(ctx, tenantID, embdID)
-	}
-	return &modelModule.EmbeddingModel{}, nil
-}
-
-func (m *mockModelService) GetChatModel(ctx context.Context, tenantID, llmID string) (*modelModule.ChatModel, error) {
-	if m.getChatModelFn != nil {
-		return m.getChatModelFn(ctx, tenantID, llmID)
-	}
-	return &modelModule.ChatModel{}, nil
+func (mockModelFactory) NewDefaultChatModel(context.Context, service.ModelAccess) (*modelModule.ChatModel, error) {
+	name := "test-model"
+	return modelModule.NewChatModel(&modelModule.DummyModel{}, &name, &modelModule.APIConfig{}), nil
 }
 
 type mockMetadataService struct {
@@ -164,7 +156,7 @@ func (m *mockDocEngine) GetChunk(ctx context.Context, _, _ string, _ []string) (
 func setupDifyTest(userID string) (*DifyRetrievalHandler, *gin.Engine) {
 	h := &DifyRetrievalHandler{
 		kbSvc:        &mockKBService{},
-		modelSvc:     &mockModelService{},
+		modelFactory: mockModelFactory{},
 		metadataSvc:  &mockMetadataService{},
 		retrievalSvc: &mockRetrievalService{},
 		docDAO:       &mockDocDAO{},
@@ -185,7 +177,7 @@ func setupDifyTest(userID string) (*DifyRetrievalHandler, *gin.Engine) {
 func setupDifyTestNoAuth() (*DifyRetrievalHandler, *gin.Engine) {
 	h := &DifyRetrievalHandler{
 		kbSvc:        &mockKBService{},
-		modelSvc:     &mockModelService{},
+		modelFactory: mockModelFactory{},
 		metadataSvc:  &mockMetadataService{},
 		retrievalSvc: &mockRetrievalService{},
 		docDAO:       &mockDocDAO{},

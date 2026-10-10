@@ -120,7 +120,7 @@ func NewDocumentHandler(documentService documentServiceIface, datasetService *da
 // @Success 200 {object} map[string]interface{}
 // @Router /api/v1/documents/{id} [get]
 func (h *DocumentHandler) GetDocumentByID(c *gin.Context) {
-	_, errorCode, errorMessage := GetUser(c)
+	user, errorCode, errorMessage := GetUser(c)
 	if errorCode != common.CodeSuccess {
 		common.ErrorWithCode(c, errorCode, errorMessage)
 		return
@@ -140,6 +140,11 @@ func (h *DocumentHandler) GetDocumentByID(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "document not found",
 		})
+		return
+	}
+
+	if !h.datasetService.Accessible(ctx, doc.KbID, user.ID) {
+		common.ResponseWithHttpCodeData(c, http.StatusForbidden, common.CodeForbidden, nil, "no permission to access this dataset")
 		return
 	}
 
@@ -1304,7 +1309,7 @@ func stringValue(value *string) string {
 
 // MetadataSummary handles the metadata summary request
 func (h *DocumentHandler) MetadataSummary(c *gin.Context) {
-	_, errorCode, errorMessage := GetUser(c)
+	user, errorCode, errorMessage := GetUser(c)
 	if errorCode != common.CodeSuccess {
 		common.ErrorWithCode(c, errorCode, errorMessage)
 		return
@@ -1327,6 +1332,11 @@ func (h *DocumentHandler) MetadataSummary(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
+	if !h.datasetService.Accessible(ctx, kbID, user.ID) {
+		common.ResponseWithHttpCodeData(c, http.StatusForbidden, common.CodeForbidden, nil, "no permission to access this dataset")
+		return
+	}
+
 	summary, err := h.documentService.GetMetadataSummary(ctx, kbID, requestBody.DocIDs)
 	if err != nil {
 		common.ResponseWithHttpCodeData(c, http.StatusInternalServerError, 1, nil, "Failed to get metadata summary: "+err.Error())
@@ -1837,7 +1847,16 @@ func (h *DocumentHandler) UpdateDatasetDocument(c *gin.Context) {
 		return
 	}
 	if present["parser_config"] && req.ParserConfig != nil {
-		if err := dataset.ValidateDocumentParserConfig(req.ParserConfig); err != nil {
+		dropped, err := dataset.ValidateDocumentParserConfig(req.ParserConfig)
+		if len(dropped) > 0 {
+			common.Warn("dropping unscoped (flat) parser_config keys; keys must be component-scoped (contain ':')",
+				zap.Strings("keys", dropped),
+				zap.String("user_id", user.ID),
+				zap.String("dataset_id", datasetID),
+				zap.String("document_id", documentID),
+			)
+		}
+		if err != nil {
 			common.ResponseWithCodeData(c, common.CodeDataError, nil, err.Error())
 			return
 		}
@@ -2006,7 +2025,11 @@ func parseMetadataSelector(raw interface{}) (*document.MetadataSelector, string)
 			return nil, "document_ids must be a list."
 		}
 		for _, id := range ids {
-			selector.DocumentIDs = append(selector.DocumentIDs, id.(string))
+			docID, ok := id.(string)
+			if !ok {
+				return nil, "document_ids must contain only strings."
+			}
+			selector.DocumentIDs = append(selector.DocumentIDs, docID)
 		}
 	}
 	if v, ok := m["metadata_condition"]; ok && v != nil {
